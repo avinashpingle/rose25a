@@ -23,8 +23,4 @@ public class Hooks {
 		System.out.println("Driver is quite successully...!");
 	}
 	
-	@BeforeStep
-	public void beforeStep() {
-		System.err.println("Before step...");
-	}
 }

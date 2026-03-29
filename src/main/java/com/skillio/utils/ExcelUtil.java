@@ -19,25 +19,55 @@ import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.FormulaEvaluator;
 
 public class ExcelUtil {
+	private String filePath;
+
+	public ExcelUtil() {
+		// TODO Auto-generated constructor stub
+	}
+
+	public ExcelUtil(String filePath) {
+		this.filePath = filePath;
+	}
 
 	// This method accepts path of the excel file and sheet name and returns the
 	// data in the form of list of data present in row in the excel sheet and the
 	// key of the map is the column name and value is the cell value
-	public List getRowData(String filePath, String sheetName, int rowNum) {
+	public List getRowData(String filePath, String sheetName, int rowNum) throws IOException {
+		System.out.println("Reading data from file: " + filePath + ", sheet: " + sheetName + ", row: " + rowNum);
 		XSSFWorkbook workbook = null;
-		try {
-			workbook = new XSSFWorkbook(new FileInputStream(filePath));
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+			System.out.println("Attempting to load Excel file...");
+			FileInputStream fis = new FileInputStream(filePath);
+			workbook = new XSSFWorkbook(fis);
+			System.out.println("Excel file loaded successfully.");
 		XSSFSheet sheet = workbook.getSheet(sheetName);
+		System.out.println("Sheet '" + sheetName + "' loaded successfully.");
 		List rowData = new ArrayList<>();
-		int rows = sheet.getLastRowNum();
 		Row row = sheet.getRow(rowNum);
 		int cells = row.getLastCellNum();
+		System.out.println("Total cells in the row: " + cells);
 		for (int i = 0; i < cells; i++) {
-			rowData.add(row.getCell(i).getStringCellValue());
+			switch (row.getCell(i).getCellType()) {
+			case STRING:
+				System.out.println("String Cell: "+row.getCell(i).getStringCellValue());
+				rowData.add(row.getCell(i).getStringCellValue());
+				break;
+			case NUMERIC:
+				System.out.println("Numeric Cell: "+row.getCell(i).getNumericCellValue());
+				rowData.add((int)row.getCell(i).getNumericCellValue());
+				break;
+			case BOOLEAN:
+				rowData.add(row.getCell(i).getBooleanCellValue());
+				break;
+			case BLANK:
+				rowData.add(null);
+				break;
+			case ERROR:
+				rowData.add(row.getCell(i).getErrorCellValue());
+				break;
+			default:
+				rowData.add(row.getCell(i).getStringCellValue());
+				break;
+			}
 		}
 		try {
 			workbook.close();
@@ -47,13 +77,18 @@ public class ExcelUtil {
 		}
 		return rowData;
 	}
-	
-	// Reads all values from a specified column (0-based index) and returns them as a
-	// List<Object> so that all cell types (String, Number, Boolean, Date, null) are supported.
+
+	public List getRowData(String sheetName, int rowNum) throws IOException {
+		return getRowData(this.filePath, sheetName, rowNum);
+	}
+
+	// Reads all values from a specified column (0-based index) and returns them as
+	// a
+	// List<Object> so that all cell types (String, Number, Boolean, Date, null) are
+	// supported.
 	public List<Object> getColumnData(String filePath, String sheetName, int colNum) {
 		List<Object> columnData = new ArrayList<>();
-		try (FileInputStream fis = new FileInputStream(filePath);
-			XSSFWorkbook workbook = new XSSFWorkbook(fis)) {
+		try (FileInputStream fis = new FileInputStream(filePath); XSSFWorkbook workbook = new XSSFWorkbook(fis)) {
 			XSSFSheet sheet = workbook.getSheet(sheetName);
 			if (sheet == null) {
 				return columnData; // empty list if sheet not found

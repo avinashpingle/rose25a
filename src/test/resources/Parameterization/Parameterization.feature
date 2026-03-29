@@ -24,3 +24,58 @@ Passing list of arguments
 		|Banana|Red|8|
 		|Strawberry|Red|30|
 	Then display list of fruits
+	
+Scenario Outline:
+	Given I have a <fruit_name>
+	And I have <qty> of it
+	Then display fruit name and its qty
+
+Examples:
+	|fruit_name|qty|
+	|Mango|12|
+	|Apple|40|
+	|Orange|20|
+	|Banana|6|
+	|Strawberry|60|
+	
+
+Scenario Outline:
+This is data driven test case where I am accepting data from excel
+
+	Given Read fruit data from <row_num>
+	Then display fruit name and its qty
+	
+Examples:
+	|row_num|
+	|1|
+	|2|
+	|3|
+	|4|
+	|5|
+	|6|
+	|7|
+	|8|
+	
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
