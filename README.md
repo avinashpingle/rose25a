@@ -106,6 +106,65 @@ mvn -Dtest=com.skillio.tests.LoginTest test
 
 (Replace with the actual fully-qualified test class name present in the project.)
 
+## Selenium Grid (updated)
+This project now supports running tests on a Selenium Grid. Recent changes include:
+
+- `app.properties` now contains a `grid.url` property (example `grid.url=http://192.168.0.116:4444`) and the existing `isOnGrid` toggle.
+- The `App` utility class exposes `App.getGridUrl()` and `App.isOnGrid()` to read these values safely.
+- `Keyword.openBrowser(String browserName)` will:
+  - Use `App.getGridUrl()` to create a `RemoteWebDriver` when `App.isOnGrid()` is true.
+  - Create appropriate Options (e.g., `ChromeOptions`, `FirefoxOptions`) for remote sessions.
+  - Provide clearer logging when session creation succeeds or fails.
+- `Keyword.quitBrowser()` was hardened so it safely handles null thread-local drivers and always clears the thread-local entry on quit/failure.
+
+Important configuration notes:
+- In `src/main/resources/app.properties` set:
+
+```ini
+grid.url=http://<hub-host>:4444
+isOnGrid=true
+browser_name=Chrome   # or Firefox
+```
+
+- Do NOT use the Grid UI path such as `/ui` when setting `grid.url`. Use the hub endpoint only. Examples:
+  - Correct: `http://192.168.0.116:4444`
+  - Sometimes valid for older Grid: `http://192.168.0.116:4444/wd/hub`
+  - Incorrect (do not use): `http://192.168.0.116:4444/ui`
+
+Quick runtime checks for Grid connectivity
+- Curl the hub status endpoint (replace host/port):
+
+```bash
+curl -sS http://192.168.0.116:4444/status
+```
+
+You should get a JSON payload indicating hub/node status.
+
+- Open the hub UI in a browser: `http://<hub-host>:4444` and verify nodes are registered and list the browsers and versions available.
+
+Common causes of SessionNotCreatedException
+- Wrong `grid.url` (e.g., using `/ui` path) or hub not reachable.
+- No matching node available for the requested browser/version.
+- Browser driver (chromedriver/geckodriver) mismatch on the node (incompatible versions).
+- Selenium versions mismatch between client and hub/node in some setups.
+
+If you get a SessionNotCreatedException, collect these and re-run:
+- The full Java stack trace (paste it into the issue).
+- Hub logs and node logs (they usually show the reason).
+- The value of `grid.url` and `browser_name` used.
+
+Why you may have seen "No driver instance found for this thread to quit."
+- That message indicates a cleanup call tried to quit a driver that was never created for the current thread. This happens when session creation failed earlier. The updated `Keyword.quitBrowser()` now behaves safely and logs clearer diagnostics.
+
+Troubleshooting steps (recommended order)
+1. Confirm `grid.url` is correct and reachable:
+   - `curl http://<hub-host>:4444/status`
+2. Check the hub UI and node registrations in `http://<hub-host>:4444`.
+3. Verify requested browser/version is available on a node.
+4. Check node logs for underlying browser startup or driver errors.
+5. Run locally (`isOnGrid=false`) to confirm tests and locators work without Grid.
+6. If session creation still fails, paste the full SessionNotCreatedException stack trace and hub logs and I can help analyze them.
+
 ## Notes & Troubleshooting
 - If you see errors related to Java version mismatch, ensure Maven is configured to use JDK 21. On macOS you can set JAVA_HOME, e.g. `export JAVA_HOME=$(/usr/libexec/java_home -v21)`.
 - If WebDriver binary errors occur, either install the appropriate driver and add to PATH or integrate a manager like WebDriverManager.
