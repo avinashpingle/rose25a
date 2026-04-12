@@ -1,18 +1,19 @@
 package com.skillio.base;
 
-import java.util.List;
-import java.util.Set;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.InvalidSelectorException;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.safari.SafariDriver;
 
 import com.skillio.exceptions.InvalidBrowserNameException;
+import com.skillio.utils.App;
 
 /**
  * This class contains all the keywords related to selenium webdriver. Keywords
@@ -26,22 +27,60 @@ public class Keyword {
 	// Thread-local driver storage. Each thread will get its own RemoteWebDriver
 	public static final ThreadLocal<RemoteWebDriver> threadLocal = new ThreadLocal<>();
 
-	// DO NOT store a static driver reference here. It would capture null at class load time
-	// and break multi-threaded runs. Use getDriver() to access the thread-specific driver.
+	// DO NOT store a static driver reference here. It would capture null at class
+	// load time
+	// and break multi-threaded runs. Use getDriver() to access the thread-specific
+	// driver.
 	public static RemoteWebDriver getDriver() {
 		return threadLocal.get();
 	}
 
 	public static void openBrowser(String browserName) {
-		if (browserName.equalsIgnoreCase("Chrome")) {
-			threadLocal.set(new ChromeDriver());
-			System.out.println("Launched browser: " + browserName);
-		} else if (browserName.equalsIgnoreCase("Firefox")) {
-			threadLocal.set(new FirefoxDriver());
-		} else if (browserName.equalsIgnoreCase("Safari")) {
-			threadLocal.set(new SafariDriver());
+		RemoteWebDriver driver;
+		if (App.isOnGrid()) {
+			String gridUrl = App.getGridUrl();
+			try {
+				if (browserName == null) {
+					throw new InvalidBrowserNameException("null");
+				}
+				if (browserName.equalsIgnoreCase("Chrome")) {
+					ChromeOptions options = new ChromeOptions();
+					// add any options/capabilities you need here
+					driver = new RemoteWebDriver(new URL(gridUrl), options);
+					threadLocal.set(driver);
+					System.out.println("Launched Chrome on Grid: " + gridUrl);
+				} else if (browserName.equalsIgnoreCase("Firefox")) {
+					FirefoxOptions options = new FirefoxOptions();
+					driver = new RemoteWebDriver(new URL(gridUrl), options);
+					threadLocal.set(driver);
+					System.out.println("Launched Firefox on Grid: " + gridUrl);
+				} else if (browserName.equalsIgnoreCase("Safari")) {
+					// Safari typically isn't available on remote grid nodes; fallback to message
+					System.out.println("Safari on Grid requested; make sure your grid supports Safari.");
+					driver = new RemoteWebDriver(new URL(gridUrl), new ChromeOptions());
+					threadLocal.set(driver);
+				} else {
+					throw new InvalidBrowserNameException(browserName);
+				}
+			} catch (MalformedURLException e) {
+				System.err.println("Invalid Grid URL: " + gridUrl + " - " + e.getMessage());
+				throw new RuntimeException(e);
+			}
 		} else {
-			throw new InvalidBrowserNameException(browserName);
+
+			if (browserName == null) {
+				throw new InvalidBrowserNameException("null");
+			}
+			if (browserName.equalsIgnoreCase("Chrome")) {
+				threadLocal.set(new ChromeDriver());
+				System.out.println("Launched browser: " + browserName);
+			} else if (browserName.equalsIgnoreCase("Firefox")) {
+				threadLocal.set(new FirefoxDriver());
+			} else if (browserName.equalsIgnoreCase("Safari")) {
+				threadLocal.set(new SafariDriver());
+			} else {
+				throw new InvalidBrowserNameException(browserName);
+			}
 		}
 	}
 
@@ -55,8 +94,8 @@ public class Keyword {
 	}
 
 	/**
-	 * This method will enter the text in the text box based on the locator type
-	 * and locator value passed by the user. Supported locator types are:
+	 * This method will enter the text in the text box based on the locator type and
+	 * locator value passed by the user. Supported locator types are:
 	 * <ul>
 	 * <li>id</li>
 	 * <li>name</li>
@@ -71,7 +110,8 @@ public class Keyword {
 	public static void enterText(String locatorType, String locatorValue, String textToEnter) {
 		RemoteWebDriver d = getDriver();
 		if (d == null) {
-			throw new IllegalStateException("Browser is not initialized. Call openBrowser() before interacting with elements.");
+			throw new IllegalStateException(
+					"Browser is not initialized. Call openBrowser() before interacting with elements.");
 		}
 		if (locatorType.equalsIgnoreCase("id")) {
 			d.findElement(By.id(locatorValue)).sendKeys(textToEnter);
@@ -95,14 +135,17 @@ public class Keyword {
 	}
 
 	/**
-	 * This method will click on the web element based on the locator type and locator
+	 * This method will click on the web element based on the locator type and
+	 * locator
+	 * 
 	 * @param locatorType
 	 * @param locatorValue
 	 */
 	public static void clickOn(String locatorType, String locatorValue) {
 		RemoteWebDriver d = getDriver();
 		if (d == null) {
-			throw new IllegalStateException("Browser is not initialized. Call openBrowser() before interacting with elements.");
+			throw new IllegalStateException(
+					"Browser is not initialized. Call openBrowser() before interacting with elements.");
 		}
 		if (locatorType.equalsIgnoreCase("id")) {
 			d.findElement(By.id(locatorValue)).click();
@@ -133,7 +176,8 @@ public class Keyword {
 	public static void clear(String locatorType, String locatorValue) {
 		RemoteWebDriver d = getDriver();
 		if (d == null) {
-			throw new IllegalStateException("Browser is not initialized. Call openBrowser() before interacting with elements.");
+			throw new IllegalStateException(
+					"Browser is not initialized. Call openBrowser() before interacting with elements.");
 		}
 		if (locatorType.equalsIgnoreCase("id")) {
 			d.findElement(By.id(locatorValue)).clear();
@@ -155,17 +199,23 @@ public class Keyword {
 			throw new InvalidSelectorException(locatorType);
 		}
 	}
-	
+
 	public static void quitBrowser() {
 		RemoteWebDriver d = getDriver();
 		if (d != null) {
-			d.quit();
-			// remove reference for this thread to avoid reuse after quit
-			threadLocal.remove();
-			System.out.println("Driver quit successfully.");
+			try {
+				d.quit();
+				// remove reference for this thread to avoid reuse after quit
+				threadLocal.remove();
+				System.out.println("Driver quit successfully.");
+			} catch (Exception e) {
+				System.err.println("Exception while quitting driver: " + e.getMessage());
+				// still attempt to remove the thread reference
+				threadLocal.remove();
+			}
 		} else {
 			System.out.println("No driver instance found for this thread to quit.");
 		}
-	} 
+	}
 
 }

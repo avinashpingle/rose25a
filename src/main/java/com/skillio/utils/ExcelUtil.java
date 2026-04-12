@@ -35,10 +35,10 @@ public class ExcelUtil {
 	public List getRowData(String filePath, String sheetName, int rowNum) throws IOException {
 		System.out.println("Reading data from file: " + filePath + ", sheet: " + sheetName + ", row: " + rowNum);
 		XSSFWorkbook workbook = null;
-			System.out.println("Attempting to load Excel file...");
-			FileInputStream fis = new FileInputStream(filePath);
-			workbook = new XSSFWorkbook(fis);
-			System.out.println("Excel file loaded successfully.");
+		System.out.println("Attempting to load Excel file...");
+		FileInputStream fis = new FileInputStream(filePath);
+		workbook = new XSSFWorkbook(fis);
+		System.out.println("Excel file loaded successfully.");
 		XSSFSheet sheet = workbook.getSheet(sheetName);
 		System.out.println("Sheet '" + sheetName + "' loaded successfully.");
 		List rowData = new ArrayList<>();
@@ -48,12 +48,12 @@ public class ExcelUtil {
 		for (int i = 0; i < cells; i++) {
 			switch (row.getCell(i).getCellType()) {
 			case STRING:
-				System.out.println("String Cell: "+row.getCell(i).getStringCellValue());
+				System.out.println("String Cell: " + row.getCell(i).getStringCellValue());
 				rowData.add(row.getCell(i).getStringCellValue());
 				break;
 			case NUMERIC:
-				System.out.println("Numeric Cell: "+row.getCell(i).getNumericCellValue());
-				rowData.add((int)row.getCell(i).getNumericCellValue());
+				System.out.println("Numeric Cell: " + row.getCell(i).getNumericCellValue());
+				rowData.add((int) row.getCell(i).getNumericCellValue());
 				break;
 			case BOOLEAN:
 				rowData.add(row.getCell(i).getBooleanCellValue());
