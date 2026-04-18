@@ -9,8 +9,13 @@ import io.cucumber.java.BeforeStep;
 
 import static com.skillio.base.Keyword.*;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 public class Hooks {
 
+	private static final Logger LOG = LogManager.getLogger(Hooks.class);
+	
 	@Before
 	public void setUp() throws Exception {
 		openBrowser(App.getBrowserName());
@@ -20,7 +25,7 @@ public class Hooks {
 	@After
 	public void tearDown() throws Exception {
 		quitBrowser();
-		System.out.println("Driver is quite successully...!");
+		LOG.info("Driver is quite successully...!");
 	}
 	
 }

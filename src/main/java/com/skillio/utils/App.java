@@ -2,10 +2,15 @@ package com.skillio.utils;
 
 import java.io.IOException;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 public class App {
 
 	private static final String filePath = "./src/main/resources/app.properties";
 
+	private static final Logger LOG = LogManager.getLogger(App.class);
+	
 	private App() {
 		// TODO Auto-generated constructor stub
 	}
@@ -62,14 +67,14 @@ public class App {
 		}
 		
 		if (isGrid == null) {
-			System.out.println("isOnGrid property not set; defaulting to false (local run)");
+			LOG.info("isOnGrid property not set; defaulting to false (local run)");
 			return false;
 		}
 		
 		if(isGrid.equalsIgnoreCase("true")) {
-			System.out.println("Running tests on Selenium Grid...");
+			LOG.info("Running tests on Selenium Grid...");
 		} else {
-			System.out.println("Running tests locally...");
+			LOG.info("Running tests locally...");
 		}
 		return Boolean.parseBoolean(isGrid);
 	}
@@ -90,7 +95,7 @@ public class App {
 		if (gridUrl == null || gridUrl.trim().isEmpty()) {
 			gridUrl = "http://localhost:4444";
 		}
-		System.out.println("Using Grid URL: " + gridUrl);
+		LOG.info("Using Grid URL: " + gridUrl);
 		return gridUrl;
 	}
 }

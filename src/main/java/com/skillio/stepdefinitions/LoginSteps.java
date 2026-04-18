@@ -73,12 +73,10 @@ public class LoginSteps {
 			Assert.assertTrue(pwdFieldMsg != null && !pwdFieldMsg.isEmpty(), "Expected password field validation message but found none.");
 			return;
 		}
-		// Fallback: check if the expectedOutcome appears anywhere on the page
 		String pageText = "";
 		try {
 			pageText = com.skillio.base.Keyword.getDriver().getPageSource();
 		} catch (Exception e) {
-			// ignore
 		}
 		Assert.assertTrue(pageText.contains(expectedOutcome), "Expected outcome text not found on page: " + expectedOutcome);
 	}
