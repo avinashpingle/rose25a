@@ -7,7 +7,7 @@ This repository contains the `rose25a` Java Selenium + Cucumber test automation 
 - ArtifactId: `rose25a`
 - Version: `1.0.0`
 - Java version: 21 (configured in `pom.xml`)
-- Main frameworks: Selenium (4.40.0), Cucumber (7.x), TestNG (7.10.2), Apache POI (for Excel).
+- Main frameworks: Selenium (4.40.0), Cucumber (7.x), TestNG (7.10.2), Apache POI (for Excel). Note: WebDriverManager is now integrated to simplify driver management in most local runs (see `app.properties`).
 
 ## Package structure
 Root source: `src/main/java`
@@ -42,18 +42,47 @@ Top-level package: `com.skillio`
 - `src/test/resources` - (if present) Cucumber feature files and test resources.
 - `test-output/` - generated TestNG/Cucumber HTML reports (after running tests).
 
-## Prerequisites
-- Java 21 JDK installed and JAVA_HOME set.
-- Maven 3.8+ installed and available on PATH.
-- A browser installed (Chrome, Firefox) and optionally the matching WebDriver binaries if not handled automatically.
-- Optional: `chromedriver` or `geckodriver` on PATH, or configure the tests to use WebDriverManager (not present by default).
+## Recent framework changes (summary)
+This project has been updated to support more flexible execution environments, improved driver management, safer cleanup, and better reporting. Key changes:
 
-Check Java and Maven versions:
+- Thread-safe WebDriver handling
+  - All WebDriver instances are stored in a ThreadLocal so tests can run in parallel safely.
+  - `Keyword` and `Hooks` were updated to create and quit drivers safely and to always clear the ThreadLocal on shutdown.
 
-```bash
-java -version
-mvn -v
+- Selenium Grid / Remote execution
+  - Tests can run on a remote Selenium Grid (or compatible hub such as Selenoid) using `grid.url` and the `isOnGrid` toggle in `app.properties`.
+  - `App.getGridUrl()` and `App.isOnGrid()` expose these values and are used by `Keyword.openBrowser(...)` to create a `RemoteWebDriver` when needed.
+  - The remote creation code builds appropriate Options objects (e.g., `ChromeOptions`, `FirefoxOptions`) and forwards them to the hub.
+
+- WebDriverManager / local driver management
+  - WebDriverManager is available to automatically resolve local browser driver binaries in typical local runs. This reduces the need to manually install or configure `chromedriver`/`geckodriver` on CI or developer machines.
+
+- Improved logging and diagnostics
+  - More informative logs are produced during session creation and teardown to make failures (SessionNotCreatedException etc.) easier to diagnose.
+
+- Allure reporting support
+  - Test results are collected so they can be displayed with Allure. Test artifacts are available in `allure-results/` (if tests are configured to write there).
+
+- Properties and configuration
+  - `src/main/resources/app.properties` has new and clarified keys (examples below). The `PropUtil` helper reads these safely.
+
+## Important configuration (app.properties)
+Example keys you may find in `src/main/resources/app.properties`:
+
+```ini
+browser_name=chrome          # local browser: chrome, firefox, etc.
+headless=false               # run headless when true
+isOnGrid=false               # enable remote execution
+grid.url=http://<hub-host>:4444   # Selenium Grid hub endpoint (no /ui)
+parallel.threads=4           # optional: number of parallel threads when using TestNG
+allure.enabled=true          # optional: enable writing Allure results
 ```
+
+Notes:
+- Do NOT use the Grid UI path such as `/ui` when setting `grid.url`. Use the hub endpoint only. Examples:
+  - Correct: `http://192.168.0.116:4444`
+  - Sometimes valid for older Grid: `http://192.168.0.116:4444/wd/hub`
+  - Incorrect (do not use): `http://192.168.0.116:4444/ui`
 
 ## How to build
 From the project root (`rose25a/`):
@@ -70,68 +99,67 @@ To run the full build including tests:
 mvn test
 ```
 
-Note: Cucumber/TestNG execution may rely on property files or system properties. If tests open a browser, ensure the appropriate WebDriver binary is available.
-
-## How to run Cucumber tests
-If the project uses Cucumber with TestNG, there is usually a test runner class or a `testng.xml` file (check `src/test` or project root). To run tests via Maven:
+You can pass common properties on the mvn command line to override `app.properties` values at runtime. For example:
 
 ```bash
-mvn test -Dcucumber.options="--tags @smoke"
+mvn test -Dbrowser_name=chrome -DisOnGrid=false
 ```
 
-Or simply:
+## How to run Cucumber/TestNG tests
+- Run all tests with Maven:
 
 ```bash
 mvn test
 ```
 
-If tests require a specific browser, set the browser property on the command line. Example if `PropUtil` or test setup reads `browser` system property:
+- Run tests with a specific Cucumber tag (if using Cucumber runner):
 
 ```bash
-mvn test -Dbrowser=chrome
+mvn test -Dcucumber.options="--tags @smoke"
 ```
 
-## Example: Running a single TestNG suite or Cucumber runner
-If there's a `testng.xml` under project root or `src/test/resources`, you can run:
+- Run tests on the Grid (example):
+
+```bash
+mvn test -Dbrowser_name=chrome -DisOnGrid=true -Dgrid.url=http://192.168.0.116:4444
+```
+
+- Run a specific TestNG suite file (if you have `testng.xml`):
 
 ```bash
 mvn -Dtestng.suiteXmlFiles=testng.xml test
 ```
 
-Or run a specific TestNG class:
+- Run a single test class:
 
 ```bash
 mvn -Dtest=com.skillio.tests.LoginTest test
 ```
 
-(Replace with the actual fully-qualified test class name present in the project.)
+## Allure reporting (quick)
+If Allure is available on your machine (CLI) or in CI:
 
-## Selenium Grid (updated)
-This project now supports running tests on a Selenium Grid. Recent changes include:
+- After a test run, artifacts are stored in `allure-results/` or `target/allure-results` depending on your configuration.
 
-- `app.properties` now contains a `grid.url` property (example `grid.url=http://192.168.0.116:4444`) and the existing `isOnGrid` toggle.
-- The `App` utility class exposes `App.getGridUrl()` and `App.isOnGrid()` to read these values safely.
-- `Keyword.openBrowser(String browserName)` will:
-  - Use `App.getGridUrl()` to create a `RemoteWebDriver` when `App.isOnGrid()` is true.
-  - Create appropriate Options (e.g., `ChromeOptions`, `FirefoxOptions`) for remote sessions.
-  - Provide clearer logging when session creation succeeds or fails.
-- `Keyword.quitBrowser()` was hardened so it safely handles null thread-local drivers and always clears the thread-local entry on quit/failure.
+- Serve a quick local report (requires `allure` command installed):
 
-Important configuration notes:
-- In `src/main/resources/app.properties` set:
-
-```ini
-grid.url=http://<hub-host>:4444
-isOnGrid=true
-browser_name=Chrome   # or Firefox
+```bash
+# run tests then serve results from local directory
+mvn test
+allure serve allure-results
 ```
 
-- Do NOT use the Grid UI path such as `/ui` when setting `grid.url`. Use the hub endpoint only. Examples:
-  - Correct: `http://192.168.0.116:4444`
-  - Sometimes valid for older Grid: `http://192.168.0.116:4444/wd/hub`
-  - Incorrect (do not use): `http://192.168.0.116:4444/ui`
+Or generate the static report:
 
-Quick runtime checks for Grid connectivity
+```bash
+mvn test
+allure generate allure-results -o allure-report --clean
+allure open allure-report
+```
+
+If Allure is not needed in your environment, you can disable it via property flags or by removing the reporter configuration from the surefire/failsafe runner.
+
+## Quick runtime checks for Grid connectivity
 - Curl the hub status endpoint (replace host/port):
 
 ```bash
@@ -142,7 +170,7 @@ You should get a JSON payload indicating hub/node status.
 
 - Open the hub UI in a browser: `http://<hub-host>:4444` and verify nodes are registered and list the browsers and versions available.
 
-Common causes of SessionNotCreatedException
+## Common causes of SessionNotCreatedException
 - Wrong `grid.url` (e.g., using `/ui` path) or hub not reachable.
 - No matching node available for the requested browser/version.
 - Browser driver (chromedriver/geckodriver) mismatch on the node (incompatible versions).
@@ -153,10 +181,10 @@ If you get a SessionNotCreatedException, collect these and re-run:
 - Hub logs and node logs (they usually show the reason).
 - The value of `grid.url` and `browser_name` used.
 
-Why you may have seen "No driver instance found for this thread to quit."
-- That message indicates a cleanup call tried to quit a driver that was never created for the current thread. This happens when session creation failed earlier. The updated `Keyword.quitBrowser()` now behaves safely and logs clearer diagnostics.
+## Why you may have seen "No driver instance found for this thread to quit."
+- That message indicates a cleanup call tried to quit a driver that was never created for the current thread. This sometimes happens when session creation failed earlier. The updated `Keyword.quitBrowser()` now behaves safely and logs clearer diagnostics. If you still encounter it, share the session creation stack trace and the logs.
 
-Troubleshooting steps (recommended order)
+## Troubleshooting steps (recommended order)
 1. Confirm `grid.url` is correct and reachable:
    - `curl http://<hub-host>:4444/status`
 2. Check the hub UI and node registrations in `http://<hub-host>:4444`.
@@ -167,7 +195,7 @@ Troubleshooting steps (recommended order)
 
 ## Notes & Troubleshooting
 - If you see errors related to Java version mismatch, ensure Maven is configured to use JDK 21. On macOS you can set JAVA_HOME, e.g. `export JAVA_HOME=$(/usr/libexec/java_home -v21)`.
-- If WebDriver binary errors occur, either install the appropriate driver and add to PATH or integrate a manager like WebDriverManager.
+- If WebDriver binary errors occur, either install the appropriate driver and add to PATH or use the built-in WebDriverManager support.
 - If feature files are not found, ensure they are placed under `src/test/resources` and the Cucumber runner points to them.
 
 ## Quick references
@@ -183,6 +211,6 @@ This repository does not contain a license file. Add one if you intend to open-s
 If you'd like, I can:
 - Add a minimal `test` runner or `testng.xml` if missing.
 - Add a `scripts/` helper to run commonly used commands.
-- Add WebDriverManager to the project to avoid manually installing drivers.
+- Add or tune WebDriverManager usage in the project to avoid manually installing drivers.
 
 Tell me which of those you'd like next.
